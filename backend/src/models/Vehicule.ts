@@ -1,18 +1,58 @@
 import mongoose from 'mongoose';
 
-const VehiculeSchema = new mongoose.Schema({
-  marque: { type: String, required: true },
-  modele: { type: String, required: true },
-  matricule: { type: String, required: true, unique: true },
-  type: { type: String, required: true },
-  date_mise_en_circulation: { type: Date },
-  assurance: { type: Date },
-  carte_grise: { type: Date },
-  visite_technique: { type: Date },
-  km_actuel: { type: Number, default: 0 },
-  en_service: { type: Boolean, default: true }
-}, {
-  timestamps: true
-});
+const vehiculeSchema = new mongoose.Schema(
+  {
+    nom: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    matricule: {
+      type: String,
+      required: true,
+      trim: true,
+      unique: true
+    },
+    type: {
+      type: String,
+      enum: ['Camion', 'Tracteur', 'Voiture'],
+      required: true,
+      set: (val: string) => val.charAt(0).toUpperCase() + val.slice(1).toLowerCase()
 
-export default mongoose.model('Vehicule', VehiculeSchema);
+    },
+    kilometrage: {
+      type: Number,
+      required: true
+    },
+    controle_technique: {
+      type: String,
+      required: true
+    },
+    assurance: {
+      type: String
+    },
+    carteGrise: {
+      type: String
+    },
+    vignette: {
+      type: String
+    },
+    agrement: {
+      type: String
+    },
+    carteVerte: {
+      type: String
+    },
+    extincteur: {
+      type: String
+    },
+    chauffeur: {
+      type: String
+    }
+  },
+  {
+    timestamps: true
+  }
+);
+
+export default mongoose.model('Vehicule', vehiculeSchema);

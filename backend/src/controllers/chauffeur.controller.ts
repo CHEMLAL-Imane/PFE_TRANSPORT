@@ -1,55 +1,119 @@
-// backend/src/controllers/chauffeur.controller.ts
-import { Request, Response } from 'express';
+import { RequestHandler } from 'express';
 import Chauffeur from '../models/Chauffeur';
 
-export const createChauffeur = async (req: Request, res: Response) => {
+// ✅ Récupérer la liste des chauffeurs
+export const getChauffeurs: RequestHandler = async (_req, res) => {
   try {
-    const chauffeur = new Chauffeur(req.body);
-    await chauffeur.save();
-    res.status(201).json(chauffeur);
-  } catch (error) {
-    res.status(400).json({ message: 'Erreur lors de la création', error });
+    const list = await Chauffeur.find();
+    res.json(list);
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur', error: err });
   }
 };
 
-export const getAllChauffeurs = async (_req: Request, res: Response) => {
+// ✅ Supprimer un chauffeur
+export const deleteChauffeur: RequestHandler = async (req, res) => {
   try {
-    const chauffeurs = await Chauffeur.find();
-    res.status(200).json(chauffeurs);
+    await Chauffeur.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Chauffeur supprimé avec succès.' });
   } catch (error) {
-    res.status(500).json({ message: 'Erreur serveur', error });
+    res.status(400).json({ error: 'Erreur lors de la suppression du chauffeur.' });
   }
 };
-// GET un seul chauffeur
-export const getChauffeurById = async (req: Request, res: Response) => {
-    try {
-      const chauffeur = await Chauffeur.findById(req.params.id);
-      if (!chauffeur) return res.status(404).json({ message: 'Chauffeur non trouvé' });
-      res.status(200).json(chauffeur);
-    } catch (error) {
-      res.status(500).json({ message: 'Erreur serveur', error });
+
+// ✅ Modifier un chauffeur
+export const updateChauffeur: RequestHandler = async (req, res) => {
+  try {
+    const updates: any = req.body;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+    if (files) {
+      if (files['scanPermis']) updates.scanPermis = files['scanPermis'][0].filename;
+      if (files['scanVisa']) updates.scanVisa = files['scanVisa'][0].filename;
+      if (files['scanCIN']) updates.scanCIN = files['scanCIN'][0].filename;
+      if (files['photo']) updates.photo = files['photo'][0].filename;
+      if (files['certificatBonneConduite']) updates.certificatBonneConduite = files['certificatBonneConduite'][0].filename;
     }
-  };
-  
-  // PUT modifier un chauffeur
-  export const updateChauffeur = async (req: Request, res: Response) => {
-    try {
-      const updated = await Chauffeur.findByIdAndUpdate(req.params.id, req.body, { new: true });
-      if (!updated) return res.status(404).json({ message: 'Chauffeur non trouvé' });
-      res.status(200).json(updated);
-    } catch (error) {
-      res.status(400).json({ message: 'Erreur lors de la mise à jour', error });
+
+    if ('visa_actif' in updates) {
+      updates['visa.actif'] = updates.visa_actif === 'true' || updates.visa_actif === true;
+      delete updates.visa_actif;
     }
-  };
-  
-  // DELETE un chauffeur
-  export const deleteChauffeur = async (req: Request, res: Response) => {
-    try {
-      const deleted = await Chauffeur.findByIdAndDelete(req.params.id);
-      if (!deleted) return res.status(404).json({ message: 'Chauffeur non trouvé' });
-      res.status(200).json({ message: 'Chauffeur supprimé' });
-    } catch (error) {
-      res.status(500).json({ message: 'Erreur lors de la suppression', error });
+
+    if (updates.permis_date_expiration) updates['permis.date_expiration'] = updates.permis_date_expiration;
+    if (updates.contrat_type) updates['contrat.type'] = updates.contrat_type;
+    if (updates.contrat_date_expiration) updates['contrat.date_expiration'] = updates.contrat_date_expiration;
+    if (updates.visa_date_expiration) updates['visa.date_expiration'] = updates.visa_date_expiration;
+
+    await Chauffeur.findByIdAndUpdate(req.params.id, updates, { new: true });
+
+    res.json({ message: 'Chauffeur modifié avec succès.' });
+  } catch (err) {
+    console.error('❌ Erreur modification chauffeur :', err);
+    res.status(500).json({ message: 'Erreur lors de la modification.' });
+  }
+};
+
+// ✅ Ajouter un chauffeur
+export const addChauffeur: RequestHandler = async (req, res) => {
+  try {
+    const {
+      nom,
+      prenom,
+      telephone,
+      cin,
+      adresse,
+      observations,
+      permis_date_expiration,
+      contrat_type,
+      contrat_date_expiration,
+      visa_actif,
+      visa_date_expiration
+    } = req.body;
+
+    const scanPermis = req.files && 'scanPermis' in req.files ? req.files['scanPermis'][0].filename : '';
+    const scanVisa = req.files && 'scanVisa' in req.files ? req.files['scanVisa'][0].filename : '';
+    const scanCIN = req.files && 'scanCIN' in req.files ? req.files['scanCIN'][0].filename : '';
+    const photo = req.files && 'photo' in req.files ? req.files['photo'][0].filename : '';
+    const certificatBonneConduite = req.files && 'certificatBonneConduite' in req.files
+      ? req.files['certificatBonneConduite'][0].filename
+      : '';
+
+    const visaActifBool = visa_actif === 'true' || visa_actif === true;
+
+    const chauffeur = new Chauffeur({
+      nom,
+      prenom,
+      telephone,
+      cin,
+      adresse,
+      observations,
+      permis: {
+        date_expiration: permis_date_expiration
+      },
+      contrat: {
+        type: contrat_type,
+        date_expiration: contrat_date_expiration
+      },
+      visa: {
+        actif: visaActifBool,
+        date_expiration: visa_date_expiration
+      },
+      scanPermis,
+      scanVisa,
+      scanCIN,
+      photo,
+      certificatBonneConduite
+    });
+
+    await chauffeur.save();
+    res.status(201).json(chauffeur);
+  } catch (err: any) {
+    console.error('❌ Erreur lors de la création du chauffeur :', err);
+    if (err.code === 11000) {
+      res.status(400).json({ message: "Un chauffeur avec ce CIN existe déjà." });
+    } else {
+      res.status(500).json({ message: 'Erreur serveur', error: err.message });
     }
-  };
-  
+  }
+};
